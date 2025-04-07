@@ -11,7 +11,7 @@ pub mod devices;
 pub mod pyvi;
 
 use common::constants::ELECTRON_MASS;
-use fdm1D::{tridiag::{self, MatTriDiag}, Mesh, PoissionProblem};
+use fdm1D::{Mesh, PoissionProblem};
 use rgsl::error;
 use rgsl::Value;
 use semiconductor as sc;
