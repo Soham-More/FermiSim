@@ -1,3 +1,5 @@
+use core::f64;
+
 use crate::common::*;
 use crate::fdm1D::Mesh;
 use super::bulk::*;
@@ -14,14 +16,20 @@ pub struct Semiconductor
 
 impl Semiconductor {
 
-    pub fn create(bulk:Bulk, begin_pos:f64, end_pos:f64) -> Semiconductor
+    pub fn create(bulk:Bulk) -> Semiconductor
     {
         Semiconductor {
             bulk,
-            begin_pos,
-            end_pos,
+            begin_pos:-f64::INFINITY,
+            end_pos:f64::INFINITY,
             dopants:Vec::new()
         }
+    }
+
+    pub fn set_bulk_range(&mut self, begin_pos:f64, end_pos:f64)
+    {
+        self.begin_pos = begin_pos;
+        self.end_pos = end_pos;
     }
 
     pub fn is_inside(&self, x:f64) -> bool

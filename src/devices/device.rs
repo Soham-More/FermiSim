@@ -9,6 +9,7 @@ pub struct Device {
     poissionProb:PoissionProblem,
     temp:f64,
     last_pos:f64,
+    epsilon:VecD,
 
     pub mesh:Mesh,
     pub steady_state:State,
@@ -38,46 +39,59 @@ impl Device{
             poissionProb:PoissionProblem::default(),
             temp,
             last_pos:0.0,
-            mesh:Mesh::new(),
+            epsilon:VecD::default(),
+            mesh:Mesh::create(vec![0.0]),
             steady_state:State::default(),
             full_width:0.0,
         }
     }
 
-    pub fn push_bulk_layer(&mut self, layer:Bulk, width:f64, samples:u32)
+    pub fn push_bulk_layer(&mut self, mut layer: Semiconductor, width:f64, samples:u32)
     {
         self.mesh.extend(
-            (0..samples).map(|i| f64::from(i) * (width / f64::from(samples - 1)))
+            (0..samples).map(|i| f64::from(i + 1) * (width / f64::from(samples)))
             .collect()
         );
+
+        if self.epsilon.is_empty()
+        {
+            self.epsilon = VecD::from_column_slice(&[layer.bulk.epsilon]);
+        }
+
+        self.epsilon.extend(
+            (0..samples).map(|_| layer.bulk.epsilon)
+        );
         
-        let layer = Semiconductor::create(layer, self.last_pos, self.last_pos + width);
+        layer.set_bulk_range(self.last_pos, self.last_pos + width);
         self.bulk_layers.push(layer);
 
         self.last_pos += width;
         self.full_width += width;
     }
 
-    pub fn calc_steady_state(&mut self)
+    pub fn calc_steady_state(&mut self, charge_tol:f64, rel_potential_tol:f64, max_iter:usize)
     {
+        // prepare the poission problem
+        self.poissionProb = PoissionProblem::create(&self.mesh, &self.epsilon);
+
         let interface_layer_left = self.bulk_layers.first().expect("No layers initialized! ");
-        let interface_layer_right = self.bulk_layers.first().expect("No layers initialized! ");
+        let interface_layer_right = self.bulk_layers.last().expect("No layers initialized! ");
 
         // the potential at x = 0 is taken as the reference.
-        let fermi_lvl = calcRootBisection(
+        self.steady_state.fermi_lvl = calcRootBisection(
             interface_layer_left.bulk.Ev, 
             interface_layer_left.bulk.Ec, 
             |mu| interface_layer_left.total_charge(0.0, mu, 0.0, self.temp), 
-            1e-5,
-            1e2,
+            rel_potential_tol,
+            charge_tol,
             100
         ).expect("No fermi_lvl in max_iter using bisection method");
 
-        let built_in_potential = calcRootBisection(
+        self.steady_state.built_in_potential = calcRootBisection(
             -interface_layer_right.bulk.band_gap / constants::Q,
             interface_layer_right.bulk.band_gap / constants::Q,
-            |V| interface_layer_right.total_charge(self.full_width, fermi_lvl, V, self.temp), 
-            1e-5,
+            |V| interface_layer_right.total_charge(self.full_width, self.steady_state.fermi_lvl, V, self.temp), 
+            rel_potential_tol,
             1e2,
             100
         ).expect("No fermi_lvl in max_iter using bisection method");
@@ -85,13 +99,13 @@ impl Device{
         let sample_last_idx = self.mesh.lastIdx();
 
         let mut potential = self.mesh.zeroVec();
-        let mut charge = self.total_charge_vec(fermi_lvl, &potential);
+        let mut charge = self.total_charge_vec(self.steady_state.fermi_lvl, &potential);
         
         potential[0] = 0.0;
-        potential[sample_last_idx] = built_in_potential;
+        potential[sample_last_idx] = self.steady_state.built_in_potential;
         
-        for _ in 0..100 {
-            let charge_derivative = self.total_charge_derivative_pot_vec(fermi_lvl, &potential);
+        for i in 0..max_iter {
+            let charge_derivative = self.total_charge_derivative_pot_vec(self.steady_state.fermi_lvl, &potential);
 
             // calculate the residual
             let mut residual = self.poissionProb.residue(&potential, &charge);
@@ -110,14 +124,30 @@ impl Device{
             let deltaV = tridiag::solve(&jacobian, &mut self.mesh.zeroVec(), residual);
 
             let w = 1.5;
-            potential -= w * deltaV;
+            potential -= w * &deltaV;
 
             // reinforce the boundary conditions
             potential[0] = 0.0;
-            potential[sample_last_idx] = built_in_potential;
+            potential[sample_last_idx] = self.steady_state.built_in_potential;
 
-            charge = self.total_charge_vec(fermi_lvl, &potential);
+            let prev_charge = charge;
+            charge = self.total_charge_vec(self.steady_state.fermi_lvl, &potential);
+
+            if (prev_charge - &charge).abs().max() < charge_tol && 
+                deltaV.abs().max() / potential.abs().max() < rel_potential_tol &&
+                i > 1
+            {
+                break;
+            }
+
+            if i == max_iter - 1
+            {
+                panic!("Steady state did not converge!");
+            }
         }
+
+        self.steady_state.potential = potential.clone();
+        self.steady_state.charge = charge.clone();
     }
 
 }

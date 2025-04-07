@@ -9,7 +9,6 @@ use tridiag::MatTriDiag;
 #[derive(Default)]
 pub struct PoissionProblem
 {
-    pub epsilon: VecD,
     pub operator: MatTriDiag,
     pub scratch: VecD,
 }
@@ -17,7 +16,7 @@ pub struct PoissionProblem
 impl PoissionProblem
 {
     // make a poission problem from a mesh and epsilon
-    pub fn create(mesh:&Mesh, epsilon:VecD) -> PoissionProblem
+    pub fn create(mesh:&Mesh, epsilon:&VecD) -> PoissionProblem
     {
         let mut subdiag = mesh.zeroVec();
         let mut diag = mesh.zeroVec();
@@ -41,7 +40,6 @@ impl PoissionProblem
         diag[mesh.lastIdx()] = 1.0;
 
         PoissionProblem{
-            epsilon,
             operator: (subdiag, diag, superdiag),
             scratch:mesh.zeroVec()
         }

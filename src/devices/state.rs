@@ -3,17 +3,18 @@ use crate::common::*;
 #[derive(Debug, Default)]
 pub struct State
 {
-    potential:VecD,
-    p:VecD,
-    n:VecD,
-    charge:VecD,
-    fermi_lvl:VecD,
+    pub potential:VecD,
+    pub p:VecD,
+    pub n:VecD,
+    pub charge:VecD,
+    pub fermi_lvl:f64,
+    pub built_in_potential:f64
 }
 
 pub struct TransientFrame
 {
-    state:State,
-    time:f64,
-    time_step:f64,
+    pub state:State,
+    pub time:f64,
+    pub time_step:f64,
 }
 
