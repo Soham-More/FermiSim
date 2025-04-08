@@ -11,28 +11,12 @@ pub mod devices;
 pub mod pyvi;
 
 use common::constants::ELECTRON_MASS;
-use fdm1D::{Mesh, PoissionProblem};
 use rgsl::error;
 use rgsl::Value;
 use semiconductor as sc;
 use common::*;
 use pyvi::PyVi;
 use devices::device::Device;
-
-fn test_poission_solver() {
-    let mesh = Mesh::create((0..20).map(|i| f64::from(i) * 1.0).collect());
-    let mut poissionProb = PoissionProblem::create(&mesh, &mesh.makeVec(1.0));
-
-    // charge density
-    let rho =  mesh.makeVec(1.0);
-
-    println!("rho: {}", rho);
-    
-    let soln = poissionProb.solve(&rho, -1.0, 1.0);
-
-    println!("Soln: {}", soln);
-    println!("Residual: {}", poissionProb.residue(&soln, &rho));
-}
 
 fn error_handling(error_str: &str, file: &str, line: u32, error_value: Value) {
     println!("RGSL [{:?}] '{}:{}': {}", error_value, file, line, error_str);
@@ -83,6 +67,8 @@ fn main() {
     device.push_bulk_layer(diode, len, sample_count);
 
     device.calc_steady_state(1e2, 1e-5, 100);
+    println!("built-in potential: {:.4} V", device.steady_state.built_in_potential);
+    println!("Steady State fermi-level(relative to Vaccum): {:.4} eV", device.steady_state.fermi_lvl / constants::Q);
 
     let mut pyviFile = PyVi::create("data.pyvi");
 
