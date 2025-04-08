@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.widgets import Button
 from functools import partial
+import os
 
 from typing import List, Dict
 
@@ -95,7 +96,58 @@ class PyVi:
         return minval - 0.05 * np.abs(minval)
     def get_high_lim(self, data):
         maxval = np.max(data)
-        return maxval + 0.05 * np.abs(maxval)
+        return maxval + 0.05 * np.abs(maxval)\
+        
+    def save_all_sections(self, root_path):
+        self.curr_i = 0
+        self.curr_iter = 0
+
+        self.keys = list(self.sections.keys())
+
+        key_cnt = -1
+
+        fig, ax = plt.subplots() 
+        fig.subplots_adjust(bottom=0.22)
+
+        key = self.keys[0]
+        section = self.sections[key]
+        ccolor = mcolors.TABLEAU_COLORS[list(mcolors.TABLEAU_COLORS.keys())[0]]
+        
+        p, = plt.plot(self.params[section.param], section.iterations[self.curr_iter], color=ccolor)
+
+        ax.title.set_text(f'{section.name} at iteration={self.curr_iter}')
+        ax.set_xlabel(f'{section.param}')
+        ax.set_ylabel(f'{section.name}')
+
+        for key in self.sections:
+            fig, ax = plt.subplots() 
+            fig.subplots_adjust(bottom=0.22)
+
+            key_cnt += 1
+
+            section = self.sections[key]
+
+            for i in range(0, len(section.iterations)):
+                ccolor = mcolors.TABLEAU_COLORS[list(mcolors.TABLEAU_COLORS.keys())[key_cnt % len(mcolors.TABLEAU_COLORS)]]
+                
+                filename = root_path + f'{section.name}/'
+                os.makedirs(filename, exist_ok=True)
+
+                p.set_xdata(self.params[section.param])
+                p.set_ydata(section.iterations[i])
+                p.set_color(ccolor)
+                
+                ax.relim()
+                ax.autoscale_view(True,True,True)
+
+                ax.title.set_text(f'{section.name} at iteration={i}') 
+                ax.set_xlabel(f'{section.param}')
+                ax.set_ylabel(f'{section.name}')
+
+                plt.plot(self.params[section.param], section.iterations[i], color=ccolor)
+
+                plt.savefig(filename + f'{i}.png')
+                plt.clf()
 
     # displays all sections 
     def display_all_sections(self):

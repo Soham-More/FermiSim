@@ -9,7 +9,7 @@ from pyvisual import PyVi
 
 pyvi = PyVi('data.pyvi')
 
-pyvi.display_all_sections()
+pyvi.save_all_sections('figs/')
 
-plt.show()
+#plt.show()
 
