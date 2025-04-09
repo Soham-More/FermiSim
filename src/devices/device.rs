@@ -10,6 +10,10 @@ pub struct Device {
     temp:f64,
     last_pos:f64,
     epsilon:VecD,
+    vacc_Ec:VecD,
+    vacc_Ev:VecD,
+
+    pub net_doping:VecD,
 
     pub mesh:Mesh,
     pub steady_state:State,
@@ -40,6 +44,9 @@ impl Device{
             temp,
             last_pos:0.0,
             epsilon:VecD::default(),
+            vacc_Ec:VecD::default(),
+            vacc_Ev:VecD::default(),
+            net_doping:VecD::default(),
             mesh:Mesh::create(vec![0.0]),
             steady_state:State::default(),
             full_width:0.0,
@@ -49,17 +56,25 @@ impl Device{
     pub fn push_bulk_layer(&mut self, mut layer: Semiconductor, width:f64, samples:u32)
     {
         self.mesh.extend(
-            (0..samples).map(|i| f64::from(i + 1) * (width / f64::from(samples)))
+            (0..samples).map(|i| self.last_pos + f64::from(i + 1) * (width / f64::from(samples)))
             .collect()
         );
 
         if self.epsilon.is_empty()
         {
             self.epsilon = VecD::from_column_slice(&[layer.bulk.epsilon]);
+            self.vacc_Ec = VecD::from_column_slice(&[layer.bulk.Ec]);
+            self.vacc_Ev = VecD::from_column_slice(&[layer.bulk.Ev]);
         }
 
         self.epsilon.extend(
             (0..samples).map(|_| layer.bulk.epsilon)
+        );
+        self.vacc_Ec.extend(
+            (0..samples).map(|_| layer.bulk.Ec)
+        );
+        self.vacc_Ev.extend(
+            (0..samples).map(|_| layer.bulk.Ev)
         );
         
         layer.set_bulk_range(self.last_pos, self.last_pos + width);
@@ -92,7 +107,7 @@ impl Device{
             interface_layer_right.bulk.band_gap / constants::Q,
             |V| interface_layer_right.total_charge(self.full_width, self.steady_state.fermi_lvl, V, self.temp), 
             rel_potential_tol,
-            1e2,
+            charge_tol,
             100
         ).expect("No fermi_lvl in max_iter using bisection method");
 
@@ -148,6 +163,25 @@ impl Device{
 
         self.steady_state.potential = potential.clone();
         self.steady_state.charge = charge.clone();
+        self.steady_state.Ec = &self.vacc_Ec - constants::Q * &potential;
+        self.steady_state.Ev = &self.vacc_Ev - constants::Q * &potential;
+        
+        self.steady_state.n = self.mesh.makeVecFn( |x, i| 
+                            self.bulk_layers.iter()
+                            .map(|y| y.electron_conc(x, self.steady_state.fermi_lvl, self.steady_state.potential[i], self.temp))
+                            .sum()
+        );
+
+        self.steady_state.p = self.mesh.makeVecFn( |x, i| 
+            self.bulk_layers.iter()
+            .map(|y| y.hole_conc(x, self.steady_state.fermi_lvl, self.steady_state.potential[i], self.temp))
+            .sum()
+        );
+
+        self.net_doping = self.bulk_layers.iter()
+            .map(|y| y.total_dopant_charge_vec(&self.mesh) / constants::Q)
+            .sum();
+
     }
 
 }
@@ -157,7 +191,7 @@ pub fn calcRootBisection(mut lower_estimate:f64, mut upper_estimate:f64, f:impl 
     let mut lower_estimate_value = f(lower_estimate);
     let mut upper_estimate_value = f(upper_estimate);
 
-    for i in 0..max_iter
+    for _ in 0..max_iter
     {
         let midpoint = (lower_estimate + upper_estimate) / 2.0;
         let deltaX = upper_estimate - lower_estimate;

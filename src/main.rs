@@ -25,46 +25,78 @@ fn error_handling(error_str: &str, file: &str, line: u32, error_value: Value) {
 fn main() {
     error::set_error_handler(Some(error_handling));
 
-    let len = 1e-5;
+    let len = 0.2e-5;
     let temp = 300.0;
-    let doping = 1e21;
+    let doping_a = 1e21;
+    let doping_b = 1e23;
 
+    // ref: https://www.ioffe.ru/SVA/NSM/Semicond/GaAs/basic.html
+    // ref: https://www.ioffe.ru/SVA/NSM/Semicond/GaAs/electric.html
     let hole_prop = sc::CarrrierInfo{
-        mobility:0.045,
-        effectiveMass:0.48*ELECTRON_MASS,
+        mobility:0.4,
+        effectiveMass:0.51*ELECTRON_MASS,
     };
 
     let elec_prop = sc::CarrrierInfo{
-        mobility:0.1,
-        effectiveMass:1.08*ELECTRON_MASS,
+        mobility:8.5,
+        effectiveMass:0.063*ELECTRON_MASS,
     };
 
-    let silicon = sc::Bulk::create_silicon_300K(hole_prop, elec_prop);
+    let GaAs = sc::Bulk::create(
+        constants::from_eV(4.07), 
+        constants::from_eV(1.42),
+        12.9,
+        hole_prop,
+        elec_prop
+    );
 
-    let boron = sc::Dopant::create_acceptor(
-        vec![doping, 0.0], 
+    // Al_x Ga_1-x As, x = 0.5
+    // ref: https://www.ioffe.ru/SVA/NSM/Semicond/AlGaAs/basic.html
+    // ref: https://www.ioffe.ru/SVA/NSM/Semicond/AlGaAs/ebasic.html
+    let hole_prop = sc::CarrrierInfo{
+        mobility:0.07,
+        effectiveMass:0.64*ELECTRON_MASS,
+    };
+
+    let elec_prop = sc::CarrrierInfo{
+        mobility:0.145,
+        effectiveMass:0.078*ELECTRON_MASS,
+    };
+
+    let AlGaAs = sc::Bulk::create(
+        constants::from_eV(3.67), 
+        constants::from_eV(2.0),
+        12.9 - 1.42,
+        hole_prop,
+        elec_prop
+    );
+
+    let zinc = sc::Dopant::create_acceptor(
+        vec![doping_a, doping_a], 
         vec![0.0, len], 
         interp::Nearest, 
-        silicon.Ev + 0.045*constants::Q, 
+        GaAs.Ev + 0.045*constants::Q, 
         4.0
     );
-    let phosphorus = sc::Dopant::create_donor(
-        vec![0.0, doping], 
-        vec![0.0, len], 
+    let silicon = sc::Dopant::create_donor(
+        vec![doping_b, doping_b], 
+        vec![len, 2.0*len], 
         interp::Nearest, 
-        silicon.Ec - 0.045*constants::Q, 
+        AlGaAs.Ec - 0.045*constants::Q, 
         2.0
     );
 
-    let mut diode = sc::Semiconductor::create(silicon);
+    let mut bottom_layer = sc::Semiconductor::create(GaAs);
+    bottom_layer.push_dopant(zinc);
 
-    diode.push_dopant(boron);
-    diode.push_dopant(phosphorus);
+    let mut top_layer = sc::Semiconductor::create(AlGaAs);
+    top_layer.push_dopant(silicon);
 
     let sample_count = 4096u32;
     
     let mut device  = Device::create(temp);
-    device.push_bulk_layer(diode, len, sample_count);
+    device.push_bulk_layer(bottom_layer, len, sample_count);
+    device.push_bulk_layer(top_layer, len, sample_count);
 
     device.calc_steady_state(1e2, 1e-5, 100);
     println!("built-in potential: {:.4} V", device.steady_state.built_in_potential);
@@ -76,10 +108,23 @@ fn main() {
 
     pyviFile.create_section("potential", "x");
     pyviFile.create_section("charge", "x");
+    pyviFile.create_section("Ec", "x");
+    pyviFile.create_section("Ev", "x");
+    pyviFile.create_section("Fermi-Level", "x");
+    pyviFile.create_section("n", "x");
+    pyviFile.create_section("p", "x");
+    pyviFile.create_section("doping", "x");
     //pyviFile.create_section("charge derivative", "x");
 
     pyviFile.push_to_section("potential", device.steady_state.potential.clone());
     pyviFile.push_to_section("charge", device.steady_state.charge.clone());
+    pyviFile.push_to_section("Ec", device.steady_state.Ec.clone() / constants::Q);
+    pyviFile.push_to_section("Ev", device.steady_state.Ev.clone() / constants::Q);
+    pyviFile.push_to_section("Fermi-Level", VecD::from_element(device.mesh.len(), device.steady_state.fermi_lvl / constants::Q));
+    pyviFile.push_to_section("n", device.steady_state.n);
+    pyviFile.push_to_section("p", device.steady_state.p);
+
+    pyviFile.push_to_section("doping", device.net_doping);
     //pyviFile.push_to_section("charge derivative", charge_derivative);
     
 }

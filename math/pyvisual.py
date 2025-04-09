@@ -79,14 +79,18 @@ class PyVi:
         plt.legend()
 
     # plot these sections, that depend on the same parameter
-    def plot_sections(self, parameter : str, sections : List[str], iter_no):
+    def plot_sections(self, parameter : str, sections : List[str], iter_no, colors=None):
         i = 0
         for key in sections:
             section = self.sections[key]
             if section.param != parameter:
                 continue
-            ccolor = mcolors.TABLEAU_COLORS[list(mcolors.TABLEAU_COLORS.keys())[i]]
-            plt.plot(self.params[parameter], section.iterations[iter_no], color=ccolor, label=key)
+            ccolor = None
+            if colors:
+                ccolor = colors[i]
+            else:
+                ccolor = mcolors.TABLEAU_COLORS[list(mcolors.TABLEAU_COLORS.keys())[i]]
+            plt.plot(self.params[parameter], section.iterations[iter_no], ccolor, label=key)
             i = (i + 1) % len(mcolors.TABLEAU_COLORS)
         plt.xlabel(parameter)
         plt.legend()

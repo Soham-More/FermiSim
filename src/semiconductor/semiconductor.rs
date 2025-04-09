@@ -37,6 +37,26 @@ impl Semiconductor {
         x >= self.begin_pos && x <= self.end_pos
     }
 
+    pub fn electron_conc(&self, x:f64, fermi_lvl:f64, potential:f64, temp:f64) -> f64
+    {
+        if !self.is_inside(x)
+        {
+            return 0.0
+        }
+
+        self.bulk.electron_conc(fermi_lvl, potential, temp)
+    }
+
+    pub fn hole_conc(&self, x:f64, fermi_lvl:f64, potential:f64, temp:f64) -> f64
+    {
+        if !self.is_inside(x)
+        {
+            return 0.0
+        }
+
+        self.bulk.hole_conc(fermi_lvl, potential, temp)
+    }
+
     pub fn push_dopant(&mut self, dopant:Dopant)
     {
         self.dopants.push(dopant);

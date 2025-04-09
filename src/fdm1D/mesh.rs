@@ -18,7 +18,7 @@ impl Mesh
 
     pub fn asVecD(&self) -> VecD
     {
-        self.makeVecFn(|x, i| x)
+        self.makeVecFn(|x, _| x)
     }
 
 

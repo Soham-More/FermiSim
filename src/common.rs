@@ -8,6 +8,7 @@ pub mod constants{
     pub const ELECTRON_MASS:f64 = 9.1093837e-31;
 
     pub fn thermal_pot(temp:f64) -> f64 { (temp * K) / Q }
+    pub fn from_eV(energy:f64) -> f64 { energy * Q }
 }
 
 pub mod interp {

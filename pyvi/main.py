@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.use('TkAgg')
 
 # not neat, i know
 import sys
@@ -9,7 +12,22 @@ from pyvisual import PyVi
 
 pyvi = PyVi('data.pyvi')
 
-pyvi.save_all_sections('figs/')
+def plot_band_diagram():
+    pyvi.plot_sections('x', ['Ec', 'Ev', 'Fermi-Level'], 0, colors=['maroon', 'maroon', 'g--'])
+    plt.ylabel('eV')
 
-#plt.show()
+def plot_carrier_conc():
+    pyvi.plot_sections('x', ['n', 'p'], 0, colors=['r', 'g'])
+    plt.yscale('log')
+    plt.ylabel('Carrier concentration($m^{-3}$)')
+    plt.xlabel('x(m)')
+
+def plot_setup():
+    pyvi.plot_sections('x', ['doping'], 0, colors=['r'])
+    plt.ylabel('Doping($m^{-3}$)')
+    plt.xlabel('x(m)')
+
+plot_carrier_conc()
+
+plt.show()
 

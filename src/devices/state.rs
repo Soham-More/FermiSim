@@ -8,7 +8,9 @@ pub struct State
     pub n:VecD,
     pub charge:VecD,
     pub fermi_lvl:f64,
-    pub built_in_potential:f64
+    pub built_in_potential:f64,
+    pub Ec:VecD,
+    pub Ev:VecD,
 }
 
 pub struct TransientFrame
