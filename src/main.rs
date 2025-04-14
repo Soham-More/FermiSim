@@ -25,9 +25,9 @@ fn error_handling(error_str: &str, file: &str, line: u32, error_value: Value) {
 fn main() {
     error::set_error_handler(Some(error_handling));
 
-    let len = 0.2e-5;
+    let len = 1e-5;
     let temp = 300.0;
-    let doping_a = 1e21;
+    let doping_a = 0.0;
     let doping_b = 1e23;
 
     // ref: https://www.ioffe.ru/SVA/NSM/Semicond/GaAs/basic.html
@@ -53,23 +53,7 @@ fn main() {
     // Al_x Ga_1-x As, x = 0.5
     // ref: https://www.ioffe.ru/SVA/NSM/Semicond/AlGaAs/basic.html
     // ref: https://www.ioffe.ru/SVA/NSM/Semicond/AlGaAs/ebasic.html
-    let hole_prop = sc::CarrrierInfo{
-        mobility:0.07,
-        effectiveMass:0.64*ELECTRON_MASS,
-    };
-
-    let elec_prop = sc::CarrrierInfo{
-        mobility:0.145,
-        effectiveMass:0.078*ELECTRON_MASS,
-    };
-
-    let AlGaAs = sc::Bulk::create(
-        constants::from_eV(3.67), 
-        constants::from_eV(2.0),
-        12.9 - 1.42,
-        hole_prop,
-        elec_prop
-    );
+    let AlGaAs = sc::Bulk::create_AlGaAs_300K(0.7).expect("Error: invalid value of x passed!");
 
     let zinc = sc::Dopant::create_acceptor(
         vec![doping_a, doping_a], 
@@ -80,11 +64,13 @@ fn main() {
     );
     let silicon = sc::Dopant::create_donor(
         vec![doping_b, doping_b], 
-        vec![len, 2.0*len], 
+        vec![2.0*len, 3.0*len], 
         interp::Nearest, 
         AlGaAs.Ec - 0.045*constants::Q, 
         2.0
     );
+
+    let spacer_AlGaAs = sc::Bulk::create_AlGaAs_300K(0.7).expect("Error: invalid value of x passed!");
 
     let mut bottom_layer = sc::Semiconductor::create(GaAs);
     bottom_layer.push_dopant(zinc);
@@ -92,13 +78,16 @@ fn main() {
     let mut top_layer = sc::Semiconductor::create(AlGaAs);
     top_layer.push_dopant(silicon);
 
+    let spacer_layer = sc::Semiconductor::create(spacer_AlGaAs);
+
     let sample_count = 4096u32;
     
     let mut device  = Device::create(temp);
     device.push_bulk_layer(bottom_layer, len, sample_count);
+    device.push_bulk_layer(spacer_layer, 0.1*len, sample_count);
     device.push_bulk_layer(top_layer, len, sample_count);
 
-    device.calc_steady_state(1e2, 1e-5, 100);
+    device.calc_steady_state(1e1, 1e-8, 500);
     println!("built-in potential: {:.4} V", device.steady_state.built_in_potential);
     println!("Steady State fermi-level(relative to Vaccum): {:.4} eV", device.steady_state.fermi_lvl / constants::Q);
 

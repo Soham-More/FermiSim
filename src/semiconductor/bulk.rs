@@ -61,6 +61,79 @@ impl Bulk {
         }
     }
 
+    pub fn create_GaAs_300K() -> Bulk
+    {
+        // ref: https://www.ioffe.ru/SVA/NSM/Semicond/GaAs/basic.html
+        // ref: https://www.ioffe.ru/SVA/NSM/Semicond/GaAs/electric.html
+        let hole_properties = CarrrierInfo{
+            mobility:0.4,
+            effectiveMass:0.51*constants::ELECTRON_MASS,
+        };
+
+        let electron_properties = CarrrierInfo{
+            mobility:8.5,
+            effectiveMass:0.063*constants::ELECTRON_MASS,
+        };
+
+        Bulk::create(
+            constants::from_eV(4.07), 
+            constants::from_eV(1.42),
+            12.9,
+            hole_properties,
+            electron_properties
+        )
+    }
+
+    pub fn create_AlGaAs_300K(x:f64) -> Option<Bulk>
+    {
+        if x < 0.0 && x > 1.0 { return None; }
+
+        if x < 0.45
+        {
+            let Eg = 1.422 + 1.2475*x;
+
+            let hole_prop = CarrrierInfo{
+                mobility:0.37 - 0.97*x + 0.74*x*x,
+                effectiveMass:0.64*constants::ELECTRON_MASS,
+            };
+        
+            let elec_prop = CarrrierInfo{
+                mobility:0.8 - 2.2*x + x*x,
+                effectiveMass:(0.063 + 0.083*x)*constants::ELECTRON_MASS,
+            };
+        
+            Some(Bulk::create(
+                constants::from_eV(4.07 - 1.1*x), 
+                constants::from_eV(Eg),
+                12.9 - 2.84 * x,
+                hole_prop,
+                elec_prop
+            ))
+        }
+        else
+        {
+            let Eg = 1.9+0.125*x+0.143*x*x;
+
+            let hole_prop = CarrrierInfo{
+                mobility:0.37 - 0.97*x + 0.74*x*x,
+                effectiveMass:(0.51 + 0.25*x)*constants::ELECTRON_MASS,
+            };
+
+            let elec_prop = CarrrierInfo{
+                mobility:-0.225 + 1.16*x - 0.72*x*x,
+                effectiveMass:(0.85 - 0.14*x)*constants::ELECTRON_MASS,
+            };
+
+            Some(Bulk::create(
+                constants::from_eV(3.64 - 0.14*x), 
+                constants::from_eV(Eg),
+                12.9 - 2.84 * x,
+                hole_prop,
+                elec_prop
+            ))
+        }
+    }
+
     pub fn electron_conc(&self, fermi_lvl:f64, potential:f64, temp:f64) -> f64
     {
         let Ec_potential = self.Ec - constants::Q * potential;

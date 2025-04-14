@@ -105,6 +105,11 @@ impl Semiconductor {
         mesh.makeVecFn(|x, i| self.total_charge_derivative_pot(x, fermi_lvl, potential[i], temp))
     }
 
+    pub fn current()
+    {
+        ;
+    }
+
 }
 
 

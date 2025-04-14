@@ -27,7 +27,8 @@ def plot_setup():
     plt.ylabel('Doping($m^{-3}$)')
     plt.xlabel('x(m)')
 
-plot_carrier_conc()
+plot_band_diagram()
+#plot_carrier_conc()
 
 plt.show()
 
