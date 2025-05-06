@@ -10,7 +10,6 @@ pub mod semiconductor;
 pub mod devices;
 pub mod pyvi;
 
-use common::constants::ELECTRON_MASS;
 use rgsl::error;
 use rgsl::Value;
 use semiconductor as sc;
@@ -21,39 +20,20 @@ use devices::device::Device;
 fn error_handling(error_str: &str, file: &str, line: u32, error_value: Value) {
     println!("RGSL [{:?}] '{}:{}': {}", error_value, file, line, error_str);
 }
-
 fn main() {
     error::set_error_handler(Some(error_handling));
 
-    let len = 1e-5;
+    let len = 1e-4;
     let temp = 300.0;
-    let doping_a = 0.0;
-    let doping_b = 1e23;
+    let doping_a = 1e17;
+    let doping_b = 8e23;
 
-    // ref: https://www.ioffe.ru/SVA/NSM/Semicond/GaAs/basic.html
-    // ref: https://www.ioffe.ru/SVA/NSM/Semicond/GaAs/electric.html
-    let hole_prop = sc::CarrrierInfo{
-        mobility:0.4,
-        effectiveMass:0.51*ELECTRON_MASS,
-    };
+    let len_spacer = 0.0;//0.1e-6;
 
-    let elec_prop = sc::CarrrierInfo{
-        mobility:8.5,
-        effectiveMass:0.063*ELECTRON_MASS,
-    };
-
-    let GaAs = sc::Bulk::create(
-        constants::from_eV(4.07), 
-        constants::from_eV(1.42),
-        12.9,
-        hole_prop,
-        elec_prop
-    );
+    let GaAs = sc::Bulk::create_GaAs_300K();
 
     // Al_x Ga_1-x As, x = 0.5
-    // ref: https://www.ioffe.ru/SVA/NSM/Semicond/AlGaAs/basic.html
-    // ref: https://www.ioffe.ru/SVA/NSM/Semicond/AlGaAs/ebasic.html
-    let AlGaAs = sc::Bulk::create_AlGaAs_300K(0.7).expect("Error: invalid value of x passed!");
+    let AlGaAs = sc::Bulk::create_AlGaAs_300K(1.0);
 
     let zinc = sc::Dopant::create_acceptor(
         vec![doping_a, doping_a], 
@@ -63,14 +43,12 @@ fn main() {
         4.0
     );
     let silicon = sc::Dopant::create_donor(
-        vec![doping_b, doping_b], 
-        vec![2.0*len, 3.0*len], 
+        vec![0.0, doping_b, doping_b], 
+        vec![len, len + 2.0*len_spacer, 2.0*len], 
         interp::Nearest, 
         AlGaAs.Ec - 0.045*constants::Q, 
         2.0
     );
-
-    let spacer_AlGaAs = sc::Bulk::create_AlGaAs_300K(0.7).expect("Error: invalid value of x passed!");
 
     let mut bottom_layer = sc::Semiconductor::create(GaAs);
     bottom_layer.push_dopant(zinc);
@@ -78,14 +56,38 @@ fn main() {
     let mut top_layer = sc::Semiconductor::create(AlGaAs);
     top_layer.push_dopant(silicon);
 
-    let spacer_layer = sc::Semiconductor::create(spacer_AlGaAs);
+    let sample_count = 64*4096u32;
+    
+    let mut device  = Device::create(temp);
+    device.push_bulk_layer(bottom_layer, len, sample_count);
+    device.push_bulk_layer(top_layer, len, sample_count);
+// */
+/* 
+    let silicon = sc::Bulk::create_silicon_300K();
 
+    let boron = sc::Dopant::create_acceptor(
+        vec![doping_a, doping_a, 0.0], 
+        vec![0.0, 0.39*len, 0.40*len], 
+        interp::Nearest, 
+        silicon.Ev + 0.045*constants::Q, 
+        4.0
+    );
+    let phosphorus = sc::Dopant::create_donor(
+        vec![0.0, doping_b, doping_b], 
+        vec![0.49*len, 0.5*len, 1.0*len], 
+        interp::Nearest, 
+        silicon.Ec - 0.045*constants::Q, 
+        2.0
+    );
+
+    let mut bottom_layer = sc::Semiconductor::create(silicon);
+    bottom_layer.push_dopant(boron);
+    bottom_layer.push_dopant(phosphorus);
     let sample_count = 4096u32;
     
     let mut device  = Device::create(temp);
     device.push_bulk_layer(bottom_layer, len, sample_count);
-    device.push_bulk_layer(spacer_layer, 0.1*len, sample_count);
-    device.push_bulk_layer(top_layer, len, sample_count);
+    // */
 
     device.calc_steady_state(1e1, 1e-8, 500);
     println!("built-in potential: {:.4} V", device.steady_state.built_in_potential);

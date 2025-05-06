@@ -47,8 +47,18 @@ impl Bulk {
         }
     }
 
-    pub fn create_silicon_300K(hole_properties:CarrrierInfo, electron_properties:CarrrierInfo) -> Bulk
+    pub fn create_silicon_300K() -> Bulk
     {
+        let hole_properties = CarrrierInfo{
+            mobility:0.045,
+            effectiveMass:0.48*constants::ELECTRON_MASS,
+        };
+    
+        let electron_properties = CarrrierInfo{
+            mobility:0.1,
+            effectiveMass:1.08*constants::ELECTRON_MASS,
+        };
+
         Bulk {
             electron_affinity:1.3895213 * constants::Q,
             band_gap:1.14 * constants::Q,
@@ -84,9 +94,12 @@ impl Bulk {
         )
     }
 
-    pub fn create_AlGaAs_300K(x:f64) -> Option<Bulk>
+    pub fn create_AlGaAs_300K(x:f64) -> Bulk
     {
-        if x < 0.0 && x > 1.0 { return None; }
+        // ref: https://www.ioffe.ru/SVA/NSM/Semicond/AlGaAs/basic.html
+        // ref: https://www.ioffe.ru/SVA/NSM/Semicond/AlGaAs/ebasic.html
+        
+        if x < 0.0 && x > 1.0 { panic!("Error: The mole_fraction must be a value between 0 and 1."); }
 
         if x < 0.45
         {
@@ -102,13 +115,13 @@ impl Bulk {
                 effectiveMass:(0.063 + 0.083*x)*constants::ELECTRON_MASS,
             };
         
-            Some(Bulk::create(
+            Bulk::create(
                 constants::from_eV(4.07 - 1.1*x), 
                 constants::from_eV(Eg),
                 12.9 - 2.84 * x,
                 hole_prop,
                 elec_prop
-            ))
+            )
         }
         else
         {
@@ -124,13 +137,13 @@ impl Bulk {
                 effectiveMass:(0.85 - 0.14*x)*constants::ELECTRON_MASS,
             };
 
-            Some(Bulk::create(
+            Bulk::create(
                 constants::from_eV(3.64 - 0.14*x), 
                 constants::from_eV(Eg),
                 12.9 - 2.84 * x,
                 hole_prop,
                 elec_prop
-            ))
+            )
         }
     }
 

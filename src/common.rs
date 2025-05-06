@@ -19,20 +19,6 @@ pub mod interp {
     }
 
     pub use Types::*;
-    use std::ops::Sub;
-
-    // TODO: assume xi is sorted??
-    // Works for any dimention > 1
-    pub fn nearest<T>(x:&T, fi:&Vec<f64>, xi:&Vec<T>) -> f64
-    where for<'b> &'b T: Sub<Output = T>,
-    T: na::Normed<Norm = f64>
-    {
-        let id = xi.iter().enumerate()
-        .min_by(|a ,b| (a.1 - x).norm_squared().total_cmp(&(b.1 - x).norm_squared()))
-        .expect("invalid input: xi is empty!").0;
-
-        return fi[id];
-    }
 
     pub fn nearest1D(x:f64, fi:&Vec<f64>, xi:&Vec<f64>) -> f64
     {
@@ -84,6 +70,17 @@ pub mod stats {
         let normed_energy = (E - fermi_lvl) / thermal_pot;
 
         degeneracy * f64::exp(normed_energy) / ( thermal_pot * (1.0 + degeneracy * f64::exp(normed_energy)).powi(2) )
+    }
+
+}
+
+pub mod sim {
+
+    struct SimulationProfile {
+        pub temp: f64,
+        pub charge_error_tol: f64,
+        pub potential_error_reltol: f64,
+        pub ss_max_iter: usize,
     }
 
 }
